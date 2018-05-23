@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System.Collections.Generic;
+using Microsoft.Extensions.Internal;
 
 namespace Microsoft.AspNetCore.Mvc.ViewFeatures
 {
@@ -26,6 +27,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
                     return false;
                 }
 
+                // Current is a MemberInfo instance which has a good comparer.
                 if (xEnumerator.Current != yEnumerator.Current)
                 {
                     return false;
@@ -37,9 +39,15 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
 
         public int GetHashCode(MemberExpressionCacheKey obj)
         {
-            return obj.Members != null ?
-                obj.Members[0].GetHashCode() :
-                obj.MemberExpression.Member.GetHashCode();
+            var hashCodeCombiner = new HashCodeCombiner();
+            hashCodeCombiner.Add(obj.ModelType);
+
+            foreach (var member in obj)
+            {
+                hashCodeCombiner.Add(member);
+            }
+
+            return hashCodeCombiner.CombinedHash;
         }
     }
 }

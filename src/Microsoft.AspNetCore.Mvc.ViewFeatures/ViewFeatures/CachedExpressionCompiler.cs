@@ -12,17 +12,11 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
     internal static class CachedExpressionCompiler
     {
         private static readonly Expression NullExpression = Expression.Constant(value: null);
-        private static readonly MethodInfo ObjectReferenceEquals = typeof(object).GetMethod(
-            nameof(object.ReferenceEquals),
-            BindingFlags.Public | BindingFlags.Static,
-            binder: null,
-            new[] { typeof(object), typeof(object) },
-            modifiers: null);
 
         /// <remarks>
         /// This is the entry point to the expression compilation system. The system
         /// a) Will rewrite the expression to avoid null refs when any part of the expression tree is evaluated  to null
-        /// b) Attempt to cache the result, an intermediate part of the result.
+        /// b) Attempt to cache the result, or an intermediate part of the result.
         /// If the provided expression is particularly obscure and the system doesn't know how to handle it, it will
         /// return null.
         /// </remarks>
@@ -221,7 +215,8 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
 
                 var body = expression.Body;
 
-                // Cast the entire expression to object in case Member is a value type. This allows us to construct a Func<TModel, object>
+                // Cast the entire expression to object in case Member is a value type. This is required for us to be able to
+                // express the null conditional statement m == null ? null : (object)m.IntValue
                 if (body.Type.IsValueType)
                 {
                     body = Expression.Convert(body, typeof(object));
@@ -254,7 +249,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
                 // type is Nullable ? (value == null) : object.ReferenceEquals(value, null)
                 var nullTest = isNullableValueType ?
                     Expression.Equal(invokingExpression, NullExpression) :
-                    (Expression)Expression.Call(ObjectReferenceEquals, invokingExpression, NullExpression);
+                    Expression.ReferenceEqual(invokingExpression, NullExpression);
 
                 if (combinedNullTest == null)
                 {

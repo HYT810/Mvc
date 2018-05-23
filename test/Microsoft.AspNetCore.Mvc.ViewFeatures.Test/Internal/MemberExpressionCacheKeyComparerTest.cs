@@ -77,6 +77,50 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
         }
 
         [Fact]
+        public void Equals_ReturnsFalse_ForChainedExpressions()
+        {
+            // Arrange
+            var key1 = GetKey(m => m.TestModel2.Id);
+            var key2 = GetKey(m => m.TestModel2.Name);
+
+            // Act & Assert
+            VerifyNotEquals(key1, key2);
+        }
+
+        [Fact]
+        public void Equals_ReturnsFalse_ForChainedExpressions_WithValueTypes()
+        {
+            // Arrange
+            var key1 = GetKey(m => m.DateTime.Ticks);
+            var key2 = GetKey(m => m.DateTime.Year);
+
+            // Act & Assert
+            VerifyNotEquals(key1, key2);
+        }
+
+        [Fact]
+        public void Equals_ReturnsFalse_ForChainedExpressions_DifferingByNullable()
+        {
+            // Arrange
+            var key1 = GetKey(m => m.DateTime.Ticks);
+            var key2 = GetKey(m => m.NullableDateTime.Value.Ticks);
+
+            // Act & Assert
+            VerifyNotEquals(key1, key2);
+        }
+
+        [Fact]
+        public void Equals_ReturnsFalse_WhenOneExpressionIsSubsetOfOther()
+        {
+            // Arrange
+            var key1 = GetKey(m => m.TestModel2);
+            var key2 = GetKey(m => m.TestModel2.Name);
+
+            // Act & Assert
+            VerifyNotEquals(key1, key2);
+        }
+
+        [Fact]
         public void Equals_ReturnsFalse_WhenMemberIsAccessedThroughNullableProperty()
         {
             // Arrange
@@ -112,31 +156,34 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
 
         private void VerifyEquals(MemberExpressionCacheKey key1, MemberExpressionCacheKey key2)
         {
+            Assert.Equal(key1, key2, Comparer);
+
             var hashCode1 = Comparer.GetHashCode(key1);
             var hashCode2 = Comparer.GetHashCode(key2);
-
-            var equals = Comparer.Equals(key1, key2);
-
             Assert.Equal(hashCode1, hashCode2);
-            Assert.True(equals, $"Comparer.Equals should return true for {key1.MemberExpression} and {key2.MemberExpression}");
 
             var cachedKey1 = key1.MakeCacheable();
 
+            Assert.Equal(key1, cachedKey1, Comparer);
+            Assert.Equal(cachedKey1, key1, Comparer);
+
             var cachedKeyHashCode1 = Comparer.GetHashCode(cachedKey1);
             Assert.Equal(hashCode1, cachedKeyHashCode1);
-
-            Assert.True(Comparer.Equals(key1, cachedKey1), $"Comparer.Equals should return true for {key1.MemberExpression} and {key2.MemberExpression}");
-            Assert.True(Comparer.Equals(cachedKey1, key2), $"Comparer.Equals should return true for {key1.MemberExpression} and {key2.MemberExpression}");
         }
 
         private void VerifyNotEquals(MemberExpressionCacheKey key1, MemberExpressionCacheKey key2)
         {
-            var equals = Comparer.Equals(key1, key2);
+            var hashCode1 = Comparer.GetHashCode(key1);
+            var hashCode2 = Comparer.GetHashCode(key2);
 
-            Assert.False(equals, $"Comparer.Equals should return false for {key1.MemberExpression} and {key2.MemberExpression}");
+            Assert.NotEqual(hashCode1, hashCode2);
+            Assert.NotEqual(key1, key2, Comparer);
 
             var cachedKey1 = key1.MakeCacheable();
-            Assert.False(Comparer.Equals(key2, cachedKey1));
+            Assert.NotEqual(key2, cachedKey1, Comparer);
+
+            var cachedKeyHashCode1 = Comparer.GetHashCode(cachedKey1);
+            Assert.NotEqual(cachedKeyHashCode1, hashCode2);
         }
 
         private static MemberExpressionCacheKey GetKey<TResult>(Expression<Func<TestModel, TResult>> expresssion)
